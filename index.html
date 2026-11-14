@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1326">
+  <meta name="description" content="Личная озвучка через Fish Audio с голосом МиллионМой">
+  <title>Моя озвучка</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { color-scheme:dark; --bg:#0c1020; --panel:#171e32; --in:#222b44; --line:#34405e; --fg:#f4f6ff; --muted:#aeb9d1; --accent:#a6afff; --good:#8defc0; --bad:#ff9da8; }
+    * { box-sizing:border-box; }
+    html { min-height:100%; background:var(--bg); }
+    body { margin:0; min-height:100vh; font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; background:radial-gradient(ellipse at 90% 0%,#252b57 0%,transparent 49%),var(--bg); color:var(--fg); }
+    .wrap { max-width:720px; margin:auto; padding:calc(28px + env(safe-area-inset-top)) 16px calc(35px + env(safe-area-inset-bottom)); }
+    .heading { display:flex; gap:13px; align-items:center; margin-bottom:23px; }
+    .logo { width:54px; height:54px; flex:none; border-radius:17px; background:#39417e; display:grid; place-items:center; font-size:29px; }
+    h1 { font-size:25px; letter-spacing:-.03em; margin:0; line-height:1.15; }
+    .sub { color:var(--muted); font-size:13px; margin-top:5px; }
+    .chip { display:inline-block; background:#293457; color:#d5ddff; border-radius:30px; padding:7px 13px; font-size:13px; margin-bottom:17px; }
+    .card { background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:21px; box-shadow:0 13px 36px #050a1938; }
+    .line { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:11px; }
+    label { font-weight:700; }
+    .count { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
+    textarea { display:block; width:100%; height:300px; max-height:60vh; min-height:180px; background:var(--in); border:1px solid #414c6d; border-radius:13px; outline:none; resize:vertical; padding:15px; font:inherit; font-size:15px; line-height:1.55; color:var(--fg); }
+    textarea::placeholder { color:#95a2bd; }
+    textarea:focus { border-color:#a2aeff; box-shadow:0 0 0 3px #a2aeff29; }
+    button, .button { font:inherit; border:0; border-radius:13px; min-height:48px; font-weight:750; cursor:pointer; text-align:center; text-decoration:none; display:flex; justify-content:center; align-items:center; padding:12px 15px; }
+    button:disabled { opacity:.65; cursor:wait; }
+    .primary { background:var(--accent); color:#161c30; width:100%; font-size:16px; margin-top:15px; }
+    .secondary { background:#2b3657; color:#e9ecff; }
+    .download { background:#274936; color:#a2f7cc; }
+    .status { min-height:24px; margin:13px 0 0; color:var(--muted); font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .status.good { color:var(--good); } .status.bad { color:var(--bad); }
+    .result { display:none; padding:16px; margin-top:16px; border-radius:14px; background:#202c44; }
+    .result.visible { display:block; }
+    audio { width:100%; margin:12px 0 9px; }
+    .actions { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+    .fallback { display:none; padding:16px; margin-top:15px; border-radius:14px; background:#282e46; border:1px solid #4b557b; }
+    .fallback.visible { display:block; }
+    .fallback h2 { font-size:16px; margin:0 0 6px; }
+    .fallback p { font-size:13px; color:#d0d7eb; margin:0 0 13px; }
+    .fine { font-size:12px; color:var(--muted); margin-top:17px; }
+    @media(max-width:430px) { .wrap { padding-left:12px; padding-right:12px; } .card { padding:15px; } textarea { height:310px; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="heading"><div class="logo" aria-hidden="true">🎙️</div><div><h1>Моя озвучка</h1><div class="sub">Fish Audio · Один текст → один MP3</div></div></div>
+    <div class="chip">🎤 Голос: <b>МиллионМой</b></div>
+    <section class="card">
+      <div class="line"><label for="input">Текст для озвучки</label><span class="count" id="counter">0 символов</span></div>
+      <textarea id="input" maxlength="20000" placeholder="Вставь сюда весь сценарий мультфильма..." spellcheck="true"></textarea>
+      <button type="button" id="generate" class="primary">▶ Сгенерировать MP3</button>
+      <p class="status" id="status" role="status" aria-live="polite">Вставь текст и нажми кнопку.</p>
+      <div id="result" class="result" aria-label="Готовая озвучка">
+        <strong>✅ Озвучка готова</strong>
+        <audio id="player" controls preload="metadata"></audio>
+        <div class="actions"><a id="download" class="button download" href="#">⬇ Скачать MP3</a><button type="button" id="share" class="secondary" hidden>Поделиться MP3</button></div>
+      </div>
+      <div id="fallback" class="fallback">
+        <h2>Прямой запрос заблокирован браузером</h2>
+        <p>Если Fish Audio не разрешает запросы с GitHub Pages (ограничение CORS), один статический HTML не может обойти это. Но текст можно открыть на официальном сайте с уже выбранным голосом.</p>
+        <div class="actions"><button type="button" id="openFish" class="secondary">🌐 Открыть в Fish Audio</button><button type="button" id="copyText" class="secondary">📋 Скопировать текст</button></div>
+      </div>
+    </section>
+    <p class="fine">Работает в браузере и в Telegram Mini App при поддержке запросов Fish Audio. API-ключ встроен в эту публичную HTML-страницу по твоему запросу и доступен посетителям.</p>
+  </main>
+<script>
+(() => {
+  'use strict';
+  // Конфигурация уже заполнена. Никаких дополнительных файлов не требуется.
+  const API_KEY = 'sk-fish-x_LWKyXspmOqsnmzriOnhY3NCocFyL6ft7Qt5lgyEMI';
+  const VOICE_ID = '179389d046ad44828531a03a8b270a0f';
+  const MODEL = 's2.1-pro-free';
+  const API_URL = 'https://api.fish.audio/v1/tts';
+  const FISH_URL = 'https://fish.audio/ru/app/text-to-speech/';
+  const $ = id => document.getElementById(id);
+  const textarea = $('input');
+  const generate = $('generate');
+  const counter = $('counter');
+  const status = $('status');
+  const result = $('result');
+  const fallback = $('fallback');
+  const player = $('player');
+  const download = $('download');
+  const share = $('share');
+  let audioUrl = null;
+  let audioFile = null;
+  const tg = window.Telegram?.WebApp;
+  try { tg?.ready(); tg?.expand(); } catch (_) {}
+  function showStatus(message, type='') { status.textContent=message; status.className='status '+type; }
+  function updateCount() { counter.textContent=textarea.value.length.toLocaleString('ru-RU')+' символов'; }
+  textarea.addEventListener('input', updateCount);
+  updateCount();
+
+  function getOfficialLink() {
+    const text = textarea.value.trim();
+    const params = new URLSearchParams({modelId: VOICE_ID, from:'discovery'});
+    // Очень длинные тексты могут не поместиться в адресной строке.
+    if (encodeURIComponent(text).length < 1400) params.set('text', text);
+    return FISH_URL+'?'+params.toString();
+  }
+  async function copyText() {
+    const text = textarea.value;
+    if (!text.trim()) return showStatus('Нет текста для копирования.','bad');
+    try { await navigator.clipboard.writeText(text); showStatus('Текст скопирован. Вставь его на Fish Audio.','good'); }
+    catch { textarea.focus(); textarea.select(); showStatus('Выделил текст — нажми Ctrl+C, чтобы скопировать.'); }
+  }
+  $('copyText').addEventListener('click', copyText);
+  $('openFish').addEventListener('click', async () => {
+    const text = textarea.value.trim();
+    if (encodeURIComponent(text).length >= 1400) await copyText();
+    const link = getOfficialLink();
+    try { tg?.openLink ? tg.openLink(link) : window.open(link, '_blank','noopener,noreferrer'); }
+    catch { window.location.href = link; }
+  });
+  generate.addEventListener('click', async () => {
+    const text = textarea.value.trim();
+    if (!text) { showStatus('Сначала вставь текст.','bad'); textarea.focus(); return; }
+    generate.disabled = true;
+    generate.textContent = '⏳ Генерирую...';
+    fallback.classList.remove('visible');
+    result.classList.remove('visible');
+    if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
+    player.removeAttribute('src'); audioFile = null;
+    showStatus('Отправляю весь текст одним запросом в Fish Audio...');
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(),240000);
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer '+API_KEY,
+          'Content-Type': 'application/json',
+          'model': MODEL
+        },
+        body: JSON.stringify({text,reference_id:VOICE_ID,format:'mp3'}),
+        signal: abort.signal
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(()=>'');
+        let message = 'Fish Audio вернул ошибку HTTP '+response.status;
+        if (response.status === 401 || response.status === 403) message += ': проверь действительность API-ключа или доступ к модели';
+        else if (response.status === 429) message += ': превышен лимит запросов';
+        else if (detail) message += ': '+detail.slice(0,250);
+        throw new Error(message);
+      }
+      const type = response.headers.get('Content-Type') || '';
+      if (type.includes('application/json')) throw new Error('Fish Audio вернул JSON вместо MP3');
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('Fish Audio вернул пустой файл');
+      audioFile = new File([blob], 'millionmoy.mp3', {type:'audio/mpeg'});
+      audioUrl = URL.createObjectURL(blob);
+      player.src = audioUrl;
+      download.href = audioUrl;
+      download.download = 'millionmoy-'+new Date().toISOString().slice(0,10)+'.mp3';
+      share.hidden = !(navigator.canShare?.({files:[audioFile]}) && navigator.share);
+      result.classList.add('visible');
+      showStatus('Готово! Слушай или скачивай MP3.','good');
+      try { tg?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
+    } catch(error) {
+      const networkOrCors = error instanceof TypeError && /fetch|network|failed|load/i.test(error.message);
+      if (networkOrCors) {
+        showStatus('Браузер не смог обратиться к Fish Audio напрямую. Вероятная причина — CORS. Используй кнопку ниже для перехода на сайт Fish Audio.','bad');
+        fallback.classList.add('visible');
+      } else if (error.name === 'AbortError') {
+        showStatus('Нет ответа 4 минуты. Попробуй ещё раз.','bad');
+      } else {
+        showStatus('Не получилось: '+error.message,'bad');
+      }
+      try { tg?.HapticFeedback?.notificationOccurred('error'); } catch (_) {}
+    } finally {
+      clearTimeout(timer);
+      generate.disabled = false;
+      generate.textContent = '▶ Сгенерировать MP3';
+    }
+  });
+  share.addEventListener('click', async () => {
+    if (!audioFile || !navigator.share) return;
+    try { await navigator.share({files:[audioFile],title:'Озвучка МиллионМой'}); } catch (_) {}
+  });
+})();
+</script>
+</body>
+</html>
